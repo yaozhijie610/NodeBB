@@ -32,6 +32,12 @@ try {
 		if (!semver.satisfies(version, defaultPackage.dependencies[packageName])) {
 			const e = new TypeError(`Incorrect dependency version: ${packageName}`);
 			e.code = 'DEP_WRONG_VERSION';
+			// delete the module from require cache so it doesn't break rest of the upgrade
+			// https://github.com/NodeBB/NodeBB/issues/11173
+			const resolvedModule = require.resolve(packageName);
+			if (require.cache[resolvedModule]) {
+				delete require.cache[resolvedModule];
+			}
 			throw e;
 		}
 	};
@@ -175,9 +181,10 @@ program
 program
 	.command('install [plugin]')
 	.description('Launch the NodeBB web installer for configuration setup or install a plugin')
-	.action((plugin) => {
+	.option('-f, --force', 'Force plugin installation even if it may be incompatible with currently installed NodeBB version')
+	.action((plugin, options) => {
 		if (plugin) {
-			require('./manage').install(plugin);
+			require('./manage').install(plugin, options);
 		} else {
 			require('./setup').webInstall();
 		}
